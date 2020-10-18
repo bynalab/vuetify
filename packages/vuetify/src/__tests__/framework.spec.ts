@@ -1,74 +1,187 @@
 // Framework
-import Vuetify, { useVuetify, VuetifySymbol } from '../framework'
+import { defineComponent, h } from 'vue'
+import { mount } from '@vue/test-utils'
+import { createVuetify, makeProps } from '../framework'
 
-// Types
-import { Service } from '../services/service'
+describe('framework', () => {
+  describe('install', () => {
+    it('should return install function', () => {
+      const vuetify = createVuetify()
 
-class MockService extends Service {
-  static property = 'mock'
-}
+      expect('install' in vuetify).toBe(true)
+    })
 
-describe('framework.ts', () => {
-  it.skip('should initialize a Vuetify service', () => {
-    const vuetify = new Vuetify()
+    it('should install provided components', () => {
+      const Foo = { name: 'Foo', template: '<div/>' }
+      const vuetify = createVuetify({
+        components: {
+          Foo,
+        },
+      })
 
-    expect('mock' in vuetify.framework).toBe(false)
+      const TestComponent = {
+        name: 'TestComponent',
+        props: {},
+        template: '<foo/>',
+      }
 
-    vuetify.use(MockService)
+      mount(TestComponent, {
+        global: {
+          plugins: [vuetify],
+        },
+      })
 
-    expect('mock' in vuetify.framework).toBe(true)
+      expect('[Vue warn]: Failed to resolve component: foo').not.toHaveBeenTipped()
+    })
+
+    it('should install provided directives', () => {
+      const Foo = { mounted: () => null }
+      const vuetify = createVuetify({
+        directives: {
+          Foo,
+        },
+      })
+
+      const TestComponent = {
+        name: 'TestComponent',
+        props: {},
+        template: '<div v-foo/>',
+      }
+
+      mount(TestComponent, {
+        global: {
+          plugins: [vuetify],
+        },
+      })
+
+      expect('[Vue warn]: Failed to resolve directive: foo').not.toHaveBeenTipped()
+    })
   })
 
-  it.skip('should merge user options with default preset', () => {
-    const vuetify = new Vuetify({
-      icons: { iconfont: 'fa' },
-      lang: {
-        current: 'es',
-        locales: {
-          es: { foo: 'bar' },
+  describe('defaults', () => {
+    const Foo = defineComponent({
+      name: 'Foo',
+      props: makeProps({
+        bar: {
+          type: String,
+          default: 'goodbye world',
         },
-      },
-      theme: {
-        themes: {
-          dark: {
-            primary: 'blue',
-          },
-        },
+      }),
+      setup (props) {
+        return () => h('div', [props.bar])
       },
     })
 
-    expect(vuetify.preset).toMatchSnapshot()
-  })
+    it('should use global default if defined', () => {
+      const vuetify = createVuetify({
+        defaults: {
+          Foo: {
+            bar: 'hello world',
+          },
+        },
+      })
 
-  it.skip('should merge user options with global and default preset', () => {
-    const vuetify = new Vuetify({
-      lang: { current: 'en' },
-      theme: { dark: false },
-      preset: {
-        lang: {
-          current: 'es',
-          locales: {
-            es: { foo: 'bar' },
-          },
+      const wrapper = mount(Foo, {
+        global: {
+          plugins: [vuetify],
         },
-        theme: {
-          dark: true,
-          themes: {
-            dark: {
-              primary: 'blue',
-            },
-          },
-        },
-      },
+      })
+
+      expect(wrapper.html()).toMatchSnapshot()
     })
 
-    expect(vuetify.preset).toMatchSnapshot()
-  })
+    it('should use component default if global not defined', () => {
+      const vuetify = createVuetify()
 
-  // inject modified in __mocks__
-  it('should return injected value', () => {
-    const vuetify = useVuetify()
+      const wrapper = mount(Foo, {
+        global: {
+          plugins: [vuetify],
+        },
+      })
 
-    expect(vuetify).toEqual(VuetifySymbol)
+      expect(wrapper.html()).toMatchSnapshot()
+    })
+
+    it('should use runtime value if defined', () => {
+      const vuetify = createVuetify({
+        defaults: {
+          Foo: {
+            bar: 'hello world',
+          },
+        },
+      })
+
+      const wrapper = mount(Foo, {
+        props: {
+          bar: 'baz',
+        },
+        global: {
+          plugins: [vuetify],
+        },
+      })
+
+      expect(wrapper.html()).toMatchSnapshot()
+    })
+
+    it('should handle factory function as default value', () => {
+      const vuetify = createVuetify({
+        defaults: {
+          TestComponent: {
+            foo: () => ({ bar: 'baz' }),
+          },
+        },
+      })
+
+      const TestComponent = defineComponent({
+        name: 'TestComponent',
+        props: makeProps({
+          foo: {
+            type: Object,
+            default: () => ({}),
+          },
+        }),
+        setup (props) {
+          return () => h('div', [JSON.stringify(props.foo)])
+        },
+      })
+
+      const wrapper = mount(TestComponent, {
+        global: {
+          plugins: [vuetify],
+        },
+      })
+
+      expect(wrapper.html()).toMatchSnapshot()
+    })
+
+    it('should handle function prop correctly', () => {
+      const vuetify = createVuetify({
+        defaults: {
+          TestComponent: {
+            foo: () => 'this should be visible',
+          },
+        },
+      })
+
+      const TestComponent = defineComponent({
+        name: 'TestComponent',
+        props: makeProps({
+          foo: {
+            type: [Function], // Function must be wrapper in array
+          },
+        }),
+        setup (props) {
+          return () => h('div', [props.foo?.()])
+        },
+      })
+
+      const wrapper = mount(TestComponent, {
+        global: {
+          plugins: [vuetify],
+        },
+      })
+
+      expect(wrapper.html()).toMatchSnapshot()
+    })
   })
 })

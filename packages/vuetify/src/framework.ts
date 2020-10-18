@@ -41,8 +41,6 @@ export const useVuetify = () => {
 
 export const createVuetify = (options: VuetifyOptions = {}) => {
   const install = (app: App) => {
-    console.log('Installing Vuetify...')
-
     const {
       components = {},
       directives = {},
@@ -109,6 +107,6 @@ function getGlobalDefault<C extends string, P extends string> (component: C, pro
   const vuetify = useVuetify()
   const key = component as keyof VuetifyComponentDefaults
   const defaults = vuetify.defaults[key] as any
-  if (defaults == null) return null
+  if (defaults == null) return undefined
   return defaults[prop]
 }
